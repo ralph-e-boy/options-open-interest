@@ -11,6 +11,11 @@ st.set_page_config(page_title="SPY Options Flow Map", layout="wide")
 st.title("📈 SPY Open Interest Tracker")
 
 # ---- Functions ----
+def next_weekday(d):
+    while d.weekday() >= 5:  # 5 = Saturday, 6 = Sunday
+        d += timedelta(days=1)
+    return d
+
 
 @st.cache_data(ttl=86400)
 def get_spy_spot():
@@ -81,7 +86,7 @@ def make_refined_chart(merged_df, spot):
     zoom_margin = (y_max - y_min) * 0.15  # 15% margin
 
     fig.update_layout(
-        title="SPY Options Open Interest Map (Aligned to Zero)",
+        title="SPY Options Open Interest Map",
         barmode='overlay',
         xaxis_title="Open Interest (Calls ➡ | ⬅ Puts)",
         yaxis_title="Strike Price",
@@ -95,7 +100,7 @@ def make_refined_chart(merged_df, spot):
         xaxis=dict(zeroline=True, zerolinewidth=2, zerolinecolor='black'),
         plot_bgcolor="#f9f9f9",
         bargap=0.2,
-        height=900,
+        height=600,
         legend=dict(orientation="h", y=1.05, x=0.5, xanchor="center"),
     )
     return fig
@@ -108,7 +113,7 @@ tab1, tab2, tab3 = st.tabs(["⚙️ Settings", "📋 Table", "📊 Chart"])
 with tab1:
     st.header("⚙️ Configure Settings")
 
-    expiration = st.date_input("Select Expiration Date", value=date.today() + timedelta(days=7))
+    expiration = st.date_input("Select Expiration Date", value=next_weekday(date.today()))
     step = st.number_input("Strike Step Interval ($)", min_value=1, max_value=50, value=1)
     range_above_below = st.slider("Range Above and Below Spot ($)", min_value=0, max_value=200, value=100)
     fetch_button = st.button("🚀 Fetch Open Interest Data")
@@ -152,8 +157,8 @@ if fetch_button:
 # Handle other tabs
 if st.session_state['merged'] is not None:
 
-    with tab2:
-        st.header("📋 Open Interest Table with Delta Bars")
+    with tab3:
+        st.header("📋 Open Interest Table")
 
         def color_delta(val):
             color = 'green' if val > 0 else 'red'
@@ -167,8 +172,8 @@ if st.session_state['merged'] is not None:
 
         st.dataframe(styled_table)
 
-    with tab3:
-        st.header("📊 Open Interest Chart")
+    with tab2:
+        #st.header("📊 Open Interest Chart")
         fig = make_refined_chart(st.session_state['merged'], st.session_state['spot'])
         st.plotly_chart(fig, use_container_width=True)
 
