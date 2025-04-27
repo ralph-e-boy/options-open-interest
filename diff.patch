@@ -1,0 +1,11 @@
+merged['call_oi'] = merged['call_oi'].astype(int)
+merged['put_oi'] = merged['put_oi'].astype(int)
+merged['delta'] = merged['call_oi'] - merged['put_oi']  # <-- add delta here
+
+st.subheader("📝 Open Interest Table (Delta Added)")
+st.dataframe(
+    merged.style.background_gradient(axis=0, cmap="Greens", subset=["call_oi"])
+                  .background_gradient(axis=0, cmap="Reds", subset=["put_oi"])
+                  .background_gradient(axis=0, cmap="coolwarm", subset=["delta"])
+)
+
