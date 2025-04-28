@@ -108,10 +108,10 @@ def make_refined_chart(merged_df, spot, ticker):
 # ---- Main App ----
 
 # Set up Tabs
-tab1, tab2, tab3 = st.tabs(["⚙️ Settings", "📋 Table", "📊 Chart"])
+tab1, tab2, tab3 = st.tabs(["⚙️ Settings", "📊 Chart", "📋 Table"])
 
 with tab1:
-    st.header("⚙️ Configure Settings")
+    st.header("⚙️  Configure Settings")
     
     ticker = st.text_input("Ticker Symbol", value="SPY")
     expiration = st.date_input("Select Expiration Date", value=next_weekday(date.today()))
