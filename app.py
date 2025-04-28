@@ -107,17 +107,24 @@ def make_refined_chart(merged_df, spot, ticker):
 
 # ---- Main App ----
 
-# Set up Tabs
-tab1, tab2, tab3 = st.tabs(["⚙️ Settings", "📊 Chart", "📋 Table"])
+# Configuration settings above tabs
+st.header("⚙️ Configure Settings")
 
-with tab1:
-    st.header("⚙️  Configure Settings")
-    
+col1, col2, col3 = st.columns(3)
+with col1:
     ticker = st.text_input("Ticker Symbol", value="SPY")
+with col2:
     expiration = st.date_input("Select Expiration Date", value=next_weekday(date.today()))
-    step = st.number_input("Strike Step Interval ($)", min_value=1, max_value=50, value=1)
+with col3:
     range_above_below = st.slider("Range Above and Below Spot ($)", min_value=0, max_value=200, value=100)
-    fetch_button = st.button("🚀 Fetch Open Interest Data")
+
+# Always use step=1
+step = 1
+
+fetch_button = st.button("🚀 Fetch Open Interest Data")
+
+# Set up Tabs
+tab1, tab2, tab3 = st.tabs(["📊 Chart", "📋 Table", "ℹ️ Info"])
 
 # Shared state variables
 if 'merged' not in st.session_state:
@@ -185,14 +192,18 @@ current_params = {
 if (st.session_state['last_params'] != current_params and 
     (st.session_state['last_params'].get('ticker') != ticker or
      st.session_state['last_params'].get('expiration') != expiration or
-     st.session_state['last_params'].get('step') != step or
      st.session_state['last_params'].get('range_above_below') != range_above_below)):
     fetch_data(ticker, expiration, step, range_above_below)
 
 # Handle other tabs
 if st.session_state['merged'] is not None:
 
-    with tab3:
+    with tab1:
+        #st.header("📊 Open Interest Chart")
+        fig = make_refined_chart(st.session_state['merged'], st.session_state['spot'], st.session_state['ticker'])
+        st.plotly_chart(fig, use_container_width=True)
+        
+    with tab2:
         st.header("📋 Open Interest Table")
 
         def color_delta(val):
@@ -206,9 +217,15 @@ if st.session_state['merged'] is not None:
             .map(color_delta, subset=["delta"])
 
         st.dataframe(styled_table)
-
-    with tab2:
-        #st.header("📊 Open Interest Chart")
-        fig = make_refined_chart(st.session_state['merged'], st.session_state['spot'], st.session_state['ticker'])
-        st.plotly_chart(fig, use_container_width=True)
+        
+    with tab3:
+        st.header("ℹ️ About This Tool")
+        st.write("""
+        This tool visualizes options open interest for a given ticker and expiration date.
+        
+        - **Green bars**: Call option open interest
+        - **Red bars**: Put option open interest
+        - **Blue dashed line**: Current stock price
+        - **Black dots**: Net delta (Call OI - Put OI)
+        """)
 
