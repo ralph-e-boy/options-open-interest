@@ -1,4 +1,4 @@
-# spy_options_open_interest_snap_zoom.py
+# options_open_interest_snap_zoom.py
 
 import streamlit as st
 import yfinance as yf
@@ -7,8 +7,8 @@ import plotly.graph_objects as go
 from datetime import date, timedelta
 
 # ---- Streamlit UI ----
-st.set_page_config(page_title="SPY Options Flow Map", layout="wide")
-st.title("📈 SPY Open Interest Tracker")
+st.set_page_config(page_title="Options Flow Map", layout="wide")
+st.title("📈 Options Open Interest Tracker")
 
 # ---- Functions ----
 def next_weekday(d):
@@ -18,9 +18,9 @@ def next_weekday(d):
 
 
 @st.cache_data(ttl=86400)
-def get_spy_spot():
-    spy = yf.Ticker("SPY")
-    todays_price = spy.history(period="1d")["Close"].iloc[-1]
+def get_stock_spot(ticker):
+    stock = yf.Ticker(ticker)
+    todays_price = stock.history(period="1d")["Close"].iloc[-1]
     return todays_price
 
 @st.cache_data(ttl=86400)
@@ -31,7 +31,7 @@ def fetch_option_chain(symbol, expiration_date):
     puts = opt_chain.puts
     return calls, puts
 
-def make_refined_chart(merged_df, spot):
+def make_refined_chart(merged_df, spot, ticker):
     fig = go.Figure()
 
     # Add CALL bars
@@ -86,7 +86,7 @@ def make_refined_chart(merged_df, spot):
     zoom_margin = (y_max - y_min) * 0.15  # 15% margin
 
     fig.update_layout(
-        title="SPY Options Open Interest Map",
+        title=f"{ticker} Options Open Interest Map",
         barmode='overlay',
         xaxis_title="Open Interest (Calls ➡ | ⬅ Puts)",
         yaxis_title="Strike Price",
@@ -112,7 +112,8 @@ tab1, tab2, tab3 = st.tabs(["⚙️ Settings", "📋 Table", "📊 Chart"])
 
 with tab1:
     st.header("⚙️ Configure Settings")
-
+    
+    ticker = st.text_input("Ticker Symbol", value="SPY")
     expiration = st.date_input("Select Expiration Date", value=next_weekday(date.today()))
     step = st.number_input("Strike Step Interval ($)", min_value=1, max_value=50, value=1)
     range_above_below = st.slider("Range Above and Below Spot ($)", min_value=0, max_value=200, value=100)
@@ -123,13 +124,15 @@ if 'merged' not in st.session_state:
     st.session_state['merged'] = None
 if 'spot' not in st.session_state:
     st.session_state['spot'] = None
+if 'ticker' not in st.session_state:
+    st.session_state['ticker'] = "SPY"
 
 # If fetch button is clicked
 if fetch_button:
-    spot = get_spy_spot()
-    st.success(f"Fetched SPY Spot Price: **${spot:.2f}**")
+    spot = get_stock_spot(ticker)
+    st.success(f"Fetched {ticker} Spot Price: **${spot:.2f}**")
 
-    calls, puts = fetch_option_chain("SPY", expiration.strftime('%Y-%m-%d'))
+    calls, puts = fetch_option_chain(ticker, expiration.strftime('%Y-%m-%d'))
 
     min_strike = (spot - range_above_below)
     max_strike = (spot + range_above_below)
@@ -153,6 +156,7 @@ if fetch_button:
 
     st.session_state['merged'] = merged
     st.session_state['spot'] = spot
+    st.session_state['ticker'] = ticker
 
 # Handle other tabs
 if st.session_state['merged'] is not None:
@@ -174,6 +178,6 @@ if st.session_state['merged'] is not None:
 
     with tab2:
         #st.header("📊 Open Interest Chart")
-        fig = make_refined_chart(st.session_state['merged'], st.session_state['spot'])
+        fig = make_refined_chart(st.session_state['merged'], st.session_state['spot'], st.session_state['ticker'])
         st.plotly_chart(fig, use_container_width=True)
 
