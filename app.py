@@ -172,7 +172,7 @@ if st.session_state['merged'] is not None:
             .background_gradient(axis=0, cmap="Greens", subset=["call_oi"])\
             .background_gradient(axis=0, cmap="Reds", subset=["put_oi"])\
             .format({"delta": "{:+d}"})\
-            .applymap(color_delta, subset=["delta"])
+            .map(color_delta, subset=["delta"])
 
         st.dataframe(styled_table)
 
