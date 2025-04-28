@@ -126,37 +126,68 @@ if 'spot' not in st.session_state:
     st.session_state['spot'] = None
 if 'ticker' not in st.session_state:
     st.session_state['ticker'] = "SPY"
+if 'last_params' not in st.session_state:
+    st.session_state['last_params'] = {}
 
-# If fetch button is clicked
+# Function to fetch data
+def fetch_data(ticker, expiration, step, range_above_below):
+    with st.spinner(f"Fetching data for {ticker}..."):
+        spot = get_stock_spot(ticker)
+        st.success(f"Fetched {ticker} Spot Price: **${spot:.2f}**")
+
+        calls, puts = fetch_option_chain(ticker, expiration.strftime('%Y-%m-%d'))
+
+        min_strike = (spot - range_above_below)
+        max_strike = (spot + range_above_below)
+
+        calls_filtered = calls[(calls['strike'] >= min_strike) & (calls['strike'] <= max_strike)]
+        puts_filtered = puts[(puts['strike'] >= min_strike) & (puts['strike'] <= max_strike)]
+
+        calls_filtered = calls_filtered[calls_filtered['strike'] % step == 0]
+        puts_filtered = puts_filtered[puts_filtered['strike'] % step == 0]
+
+        merged = pd.merge(
+            calls_filtered[['strike', 'openInterest']].rename(columns={'openInterest':'call_oi'}),
+            puts_filtered[['strike', 'openInterest']].rename(columns={'openInterest':'put_oi'}),
+            on='strike',
+            how='outer'
+        ).fillna(0)
+
+        merged['call_oi'] = merged['call_oi'].astype(int)
+        merged['put_oi'] = merged['put_oi'].astype(int)
+        merged['delta'] = merged['call_oi'] - merged['put_oi']
+
+        st.session_state['merged'] = merged
+        st.session_state['spot'] = spot
+        st.session_state['ticker'] = ticker
+        
+        # Update last parameters
+        st.session_state['last_params'] = {
+            'ticker': ticker,
+            'expiration': expiration,
+            'step': step,
+            'range_above_below': range_above_below
+        }
+
+# Check if fetch button is clicked
 if fetch_button:
-    spot = get_stock_spot(ticker)
-    st.success(f"Fetched {ticker} Spot Price: **${spot:.2f}**")
+    fetch_data(ticker, expiration, step, range_above_below)
+    
+# Check if parameters have changed and need auto-fetch
+current_params = {
+    'ticker': ticker,
+    'expiration': expiration,
+    'step': step,
+    'range_above_below': range_above_below
+}
 
-    calls, puts = fetch_option_chain(ticker, expiration.strftime('%Y-%m-%d'))
-
-    min_strike = (spot - range_above_below)
-    max_strike = (spot + range_above_below)
-
-    calls_filtered = calls[(calls['strike'] >= min_strike) & (calls['strike'] <= max_strike)]
-    puts_filtered = puts[(puts['strike'] >= min_strike) & (puts['strike'] <= max_strike)]
-
-    calls_filtered = calls_filtered[calls_filtered['strike'] % step == 0]
-    puts_filtered = puts_filtered[puts_filtered['strike'] % step == 0]
-
-    merged = pd.merge(
-        calls_filtered[['strike', 'openInterest']].rename(columns={'openInterest':'call_oi'}),
-        puts_filtered[['strike', 'openInterest']].rename(columns={'openInterest':'put_oi'}),
-        on='strike',
-        how='outer'
-    ).fillna(0)
-
-    merged['call_oi'] = merged['call_oi'].astype(int)
-    merged['put_oi'] = merged['put_oi'].astype(int)
-    merged['delta'] = merged['call_oi'] - merged['put_oi']
-
-    st.session_state['merged'] = merged
-    st.session_state['spot'] = spot
-    st.session_state['ticker'] = ticker
+# Auto-fetch on parameter changes if they're different from last fetch
+if (st.session_state['last_params'] != current_params and 
+    (st.session_state['last_params'].get('ticker') != ticker or
+     st.session_state['last_params'].get('expiration') != expiration or
+     st.session_state['last_params'].get('step') != step or
+     st.session_state['last_params'].get('range_above_below') != range_above_below)):
+    fetch_data(ticker, expiration, step, range_above_below)
 
 # Handle other tabs
 if st.session_state['merged'] is not None:
