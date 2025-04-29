@@ -8,7 +8,7 @@ from datetime import date, timedelta
 
 # ---- Streamlit UI ----
 st.set_page_config(page_title="Options Flow Map", layout="wide")
-st.title("📈 Options Open Interest Tracker")
+st.header("📈 Options Open Interest Tracker", divider=True)
 
 # ---- Functions ----
 def next_weekday(d):
@@ -100,7 +100,7 @@ def make_refined_chart(merged_df, spot, ticker):
         xaxis=dict(zeroline=True, zerolinewidth=2, zerolinecolor='black'),
         plot_bgcolor="#f9f9f9",
         bargap=0.2,
-        height=600,
+        height=900,
         legend=dict(orientation="h", y=1.05, x=0.5, xanchor="center"),
     )
     return fig
@@ -108,7 +108,7 @@ def make_refined_chart(merged_df, spot, ticker):
 # ---- Main App ----
 
 # Configuration settings above tabs
-st.header("⚙️ Configure Settings")
+st.subheader("⚙️ Configure Settings")
 
 col1, col2, col3 = st.columns(3)
 with col1:
@@ -199,7 +199,6 @@ if (st.session_state['last_params'] != current_params and
 if st.session_state['merged'] is not None:
 
     with tab1:
-        #st.header("📊 Open Interest Chart")
         fig = make_refined_chart(st.session_state['merged'], st.session_state['spot'], st.session_state['ticker'])
         st.plotly_chart(fig, use_container_width=True)
         
@@ -219,7 +218,7 @@ if st.session_state['merged'] is not None:
         st.dataframe(styled_table)
         
     with tab3:
-        st.header("ℹ️ About This Tool")
+        st.header("ℹ️ About This Tool", divider=True)
         st.write("""
         This tool visualizes options open interest for a given ticker and expiration date.
         
