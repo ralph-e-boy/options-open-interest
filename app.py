@@ -100,7 +100,7 @@ def make_refined_chart(merged_df, spot, ticker):
         xaxis=dict(zeroline=True, zerolinewidth=2, zerolinecolor='black'),
         plot_bgcolor="#f9f9f9",
         bargap=0.2,
-        height=900,
+        height=1100,
         legend=dict(orientation="h", y=1.05, x=0.5, xanchor="center"),
     )
     return fig
