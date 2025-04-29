@@ -116,6 +116,8 @@ def make_refined_chart(merged_df, spot, ticker):
             ticktext=[str(int(strike)) for strike in merged_df['strike']],
             tickfont=dict(size=12),
             range=[y_min, y_max],  # Show the full range of filtered strikes
+            gridcolor='lightgray',  # Add light gray horizontal grid lines
+            gridwidth=0.5,          # Make grid lines thin
         ),
         xaxis=dict(zeroline=True, zerolinewidth=2, zerolinecolor='black'),
         plot_bgcolor="#f9f9f9",
