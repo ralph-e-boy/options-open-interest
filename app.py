@@ -148,12 +148,17 @@ def make_refined_chart(merged_df, spot, ticker):
             tickmode='array',
             tickvals=merged_df['strike'],
             ticktext=[str(int(strike)) for strike in merged_df['strike']],
-            tickfont=dict(size=12),
+            tickfont=dict(size=16),  # Increased from 12 to 16
             range=[y_min, y_max],  # Show the full range of filtered strikes
             gridcolor='lightgray',  # Add light gray horizontal grid lines
             gridwidth=0.5,          # Make grid lines thin
         ),
-        xaxis=dict(zeroline=True, zerolinewidth=2, zerolinecolor='black'),
+        xaxis=dict(
+            zeroline=True, 
+            zerolinewidth=2, 
+            zerolinecolor='black',
+            tickfont=dict(size=16)  # Added font size for x-axis
+        ),
         plot_bgcolor="#f9f9f9",
         bargap=0.2,
         height=1600,
