@@ -44,7 +44,8 @@ def make_refined_chart(merged_df, spot, ticker):
         text=merged_df['call_oi'],
         textposition='inside',
         insidetextanchor='start',
-        hovertemplate="Strike: %{y}<br>Call OI: %{x}<extra></extra>",
+        hovertemplate="Strike: %{y}<br>Call OI: %{x}<br>Price: $%{customdata:.2f}<extra></extra>",
+        customdata=merged_df['call_price']
     ))
 
     # Add PUT bars
@@ -57,7 +58,8 @@ def make_refined_chart(merged_df, spot, ticker):
         text=merged_df['put_oi'],
         textposition='inside',
         insidetextanchor='end',
-        hovertemplate="Strike: %{y}<br>Put OI: %{x}<extra></extra>",
+        hovertemplate="Strike: %{y}<br>Put OI: %{x}<br>Price: $%{customdata:.2f}<extra></extra>",
+        customdata=merged_df['put_price']
     ))
 
     # Horizontal line at Spot Price
@@ -154,8 +156,10 @@ def fetch_data(ticker, expiration, step, range_above_below):
         puts_filtered = puts_filtered[puts_filtered['strike'] % step == 0]
 
         merged = pd.merge(
-            calls_filtered[['strike', 'openInterest']].rename(columns={'openInterest':'call_oi'}),
-            puts_filtered[['strike', 'openInterest']].rename(columns={'openInterest':'put_oi'}),
+            calls_filtered[['strike', 'openInterest', 'lastPrice']].rename(
+                columns={'openInterest':'call_oi', 'lastPrice':'call_price'}),
+            puts_filtered[['strike', 'openInterest', 'lastPrice']].rename(
+                columns={'openInterest':'put_oi', 'lastPrice':'put_price'}),
             on='strike',
             how='outer'
         ).fillna(0)
