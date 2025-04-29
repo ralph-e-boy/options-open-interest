@@ -12,10 +12,9 @@ This application fetches and displays options open interest data using the Yahoo
 - See the current stock price overlaid on the chart
 - Analyze the net delta between calls and puts
 
-![Options Open Interest Chart](option_oi_chart.png)
+![Options Open Interest Chart](option_oi_chart.png?raw=true)
 
 ## Live Demo
 
 This application is running live at: https://options-open-interest.streamlit.app
 
-Created by ralph-e-boy
