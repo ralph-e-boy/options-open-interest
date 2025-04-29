@@ -59,7 +59,8 @@ def make_refined_chart(merged_df, spot, ticker):
         orientation='h',
         marker=dict(color='rgba(0,200,0,0.6)'),
         text=merged_df['call_oi'],
-        textposition='inside',
+        textposition='outside',
+        textfont=dict(size=16),
         insidetextanchor='start',
         hovertemplate="Strike: %{y}<br>Call OI: %{x}<br>Price: $%{customdata:.2f}<extra></extra>",
         customdata=merged_df['call_price']
@@ -73,7 +74,8 @@ def make_refined_chart(merged_df, spot, ticker):
         orientation='h',
         marker=dict(color='rgba(200,0,0,0.6)'),
         text=merged_df['put_oi'],
-        textposition='inside',
+        textposition='outside',
+        textfont=dict(size=16),
         insidetextanchor='end',
         hovertemplate="Strike: %{y}<br>Put OI: %{x}<br>Price: $%{customdata:.2f}<extra></extra>",
         customdata=merged_df['put_price']
