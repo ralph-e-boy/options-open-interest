@@ -196,9 +196,10 @@ def fetch_data(ticker, expiration, step, range_above_below):
             }
             return
             
-        min_strike = (spot - range_above_below)
-        max_strike = (spot + range_above_below)
+        min_strike = max(0, spot - range_above_below)  # Ensure min_strike is not negative
+        max_strike = spot + range_above_below
 
+        # Filter calls and puts based on the range
         calls_filtered = calls[(calls['strike'] >= min_strike) & (calls['strike'] <= max_strike)]
         puts_filtered = puts[(puts['strike'] >= min_strike) & (puts['strike'] <= max_strike)]
 
