@@ -26,10 +26,27 @@ def get_stock_spot(ticker):
 @st.cache_data(ttl=86400)
 def fetch_option_chain(symbol, expiration_date):
     ticker = yf.Ticker(symbol)
-    opt_chain = ticker.option_chain(expiration_date)
-    calls = opt_chain.calls
-    puts = opt_chain.puts
-    return calls, puts
+    try:
+        opt_chain = ticker.option_chain(expiration_date)
+        calls = opt_chain.calls
+        puts = opt_chain.puts
+        return calls, puts, None
+    except Exception as e:
+        error_msg = str(e)
+        # Check if it's an expiration date error
+        if "cannot be found" in error_msg:
+            # Extract available expirations if they're in the error message
+            available_dates = []
+            if "Available expirations are:" in error_msg:
+                dates_part = error_msg.split("Available expirations are: [")[1].split("]")[0]
+                available_dates = [date.strip() for date in dates_part.split(',')]
+            
+            return None, None, {
+                "message": f"No options available for {expiration_date}",
+                "available_dates": available_dates
+            }
+        else:
+            return None, None, {"message": f"Error fetching data: {error_msg}"}
 
 def make_refined_chart(merged_df, spot, ticker):
     fig = go.Figure()
@@ -144,8 +161,41 @@ def fetch_data(ticker, expiration, step, range_above_below):
         spot = get_stock_spot(ticker)
         st.success(f"Fetched {ticker} Spot Price: **${spot:.2f}**")
 
-        calls, puts = fetch_option_chain(ticker, expiration.strftime('%Y-%m-%d'))
-
+        calls, puts, error = fetch_option_chain(ticker, expiration.strftime('%Y-%m-%d'))
+        
+        if error:
+            # Handle error case
+            st.error(error["message"])
+            
+            # If we have available dates, show them
+            if error.get("available_dates") and len(error["available_dates"]) > 0:
+                st.info("Available expiration dates:")
+                # Convert string dates to date objects for better display
+                try:
+                    available_dates = [pd.to_datetime(d).date() for d in error["available_dates"]]
+                    available_dates.sort()  # Sort dates chronologically
+                    
+                    # Display the next few available dates
+                    date_cols = st.columns(min(5, len(available_dates)))
+                    for i, col in enumerate(date_cols):
+                        if i < len(available_dates):
+                            col.metric("Expiration", available_dates[i].strftime('%Y-%m-%d'))
+                except:
+                    # Fallback if date conversion fails
+                    st.write(", ".join(error["available_dates"]))
+            
+            # Clear any previous data
+            st.session_state['merged'] = None
+            
+            # Update last parameters to prevent auto-fetch loop
+            st.session_state['last_params'] = {
+                'ticker': ticker,
+                'expiration': expiration,
+                'step': step,
+                'range_above_below': range_above_below
+            }
+            return
+            
         min_strike = (spot - range_above_below)
         max_strike = (spot + range_above_below)
 
@@ -201,7 +251,6 @@ if (st.session_state['last_params'] != current_params and
 
 # Handle other tabs
 if st.session_state['merged'] is not None:
-
     with tab1:
         fig = make_refined_chart(st.session_state['merged'], st.session_state['spot'], st.session_state['ticker'])
         st.plotly_chart(fig, use_container_width=True)
@@ -220,6 +269,12 @@ if st.session_state['merged'] is not None:
             .map(color_delta, subset=["delta"])
 
         st.dataframe(styled_table)
+else:
+    with tab1:
+        st.info("No data to display. Please select a valid expiration date and fetch data.")
+    
+    with tab2:
+        st.info("No data to display. Please select a valid expiration date and fetch data.")
         
     with tab3:
         st.header("ℹ️ About This Tool", divider=True)
