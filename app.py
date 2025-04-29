@@ -5,6 +5,8 @@ import yfinance as yf
 import pandas as pd
 import plotly.graph_objects as go
 from datetime import date, timedelta
+import time
+import logging
 
 # ---- Streamlit UI ----
 st.set_page_config(page_title="Options Flow Map", layout="wide")
@@ -16,30 +18,62 @@ def next_weekday(d):
         d += timedelta(days=1)
     return d
 
+# Rate limiter function to prevent too many requests
+def rate_limit():
+    """Sleep for 2 seconds to avoid hitting API rate limits"""
+    time.sleep(2)
 
-@st.cache_data(ttl=86400)
+@st.cache_data(ttl=3600)  # Cache for 1 hour instead of 24 hours to be safer
 def get_stock_spot(ticker):
-    stock = yf.Ticker(ticker)
-    todays_price = stock.history(period="1d")["Close"].iloc[-1]
-    return todays_price
-
-@st.cache_data(ttl=86400)
-def fetch_option_chain(symbol, expiration_date):
-    ticker = yf.Ticker(symbol)
     try:
+        rate_limit()  # Add rate limiting
+        stock = yf.Ticker(ticker)
+        history = stock.history(period="1d")
+        
+        if history.empty:
+            st.warning(f"No price data available for {ticker}")
+            return None
+            
+        todays_price = history["Close"].iloc[-1]
+        return todays_price
+    except Exception as e:
+        st.error(f"Error fetching stock price for {ticker}: {str(e)}")
+        logging.error(f"Stock price fetch error: {str(e)}")
+        return None
+
+@st.cache_data(ttl=3600)  # Cache for 1 hour
+def fetch_option_chain(symbol, expiration_date):
+    try:
+        rate_limit()  # Add rate limiting
+        ticker = yf.Ticker(symbol)
         opt_chain = ticker.option_chain(expiration_date)
+        
         calls = opt_chain.calls
         puts = opt_chain.puts
+        
+        # Check if data is empty
+        if calls.empty or puts.empty:
+            return None, None, {
+                "message": f"No options data available for {symbol} on {expiration_date}",
+                "available_dates": []
+            }
+            
         return calls, puts, None
     except Exception as e:
         error_msg = str(e)
+        logging.error(f"Option chain fetch error: {error_msg}")
+        
         # Check if it's an expiration date error
         if "cannot be found" in error_msg:
             # Extract available expirations if they're in the error message
             available_dates = []
             if "Available expirations are:" in error_msg:
-                dates_part = error_msg.split("Available expirations are: [")[1].split("]")[0]
-                available_dates = [date.strip() for date in dates_part.split(',')]
+                try:
+                    dates_part = error_msg.split("Available expirations are: [")[1].split("]")[0]
+                    available_dates = [date.strip() for date in dates_part.split(',')]
+                except IndexError:
+                    # Handle case where error message format is unexpected
+                    pass
             
             return None, None, {
                 "message": f"No options available for {expiration_date}",
@@ -133,6 +167,12 @@ def make_refined_chart(merged_df, spot, ticker):
 
 # ---- Main App ----
 
+# Set up logging
+logging.basicConfig(
+    level=logging.ERROR,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+
 # Configuration settings above tabs
 st.subheader("⚙️ Configure Settings")
 
@@ -165,78 +205,111 @@ if 'last_params' not in st.session_state:
 # Function to fetch data
 def fetch_data(ticker, expiration, step, range_above_below):
     with st.spinner(f"Fetching data for {ticker}..."):
-        spot = get_stock_spot(ticker)
-        st.success(f"Fetched {ticker} Spot Price: **${spot:.2f}**")
+        try:
+            # Get stock spot price
+            spot = get_stock_spot(ticker)
+            if spot is None:
+                st.error(f"Could not fetch price data for {ticker}. Please check the ticker symbol.")
+                st.session_state['merged'] = None
+                st.session_state['last_params'] = current_params
+                return
+                
+            st.success(f"Fetched {ticker} Spot Price: **${spot:.2f}**")
 
-        calls, puts, error = fetch_option_chain(ticker, expiration.strftime('%Y-%m-%d'))
-        
-        if error:
-            # Handle error case
-            st.error(error["message"])
+            # Get option chain data
+            calls, puts, error = fetch_option_chain(ticker, expiration.strftime('%Y-%m-%d'))
             
-            # If we have available dates, show them
-            if error.get("available_dates") and len(error["available_dates"]) > 0:
-                st.info("Available expiration dates:")
-                # Convert string dates to date objects for better display
-                try:
-                    available_dates = [pd.to_datetime(d).date() for d in error["available_dates"]]
-                    available_dates.sort()  # Sort dates chronologically
-                    
-                    # Display the next few available dates
-                    date_cols = st.columns(min(5, len(available_dates)))
-                    for i, col in enumerate(date_cols):
-                        if i < len(available_dates):
-                            col.metric("Expiration", available_dates[i].strftime('%Y-%m-%d'))
-                except:
-                    # Fallback if date conversion fails
-                    st.write(", ".join(error["available_dates"]))
-            
-            # Clear any previous data
+            if error:
+                # Handle error case
+                st.error(error["message"])
+                
+                # If we have available dates, show them
+                if error.get("available_dates") and len(error["available_dates"]) > 0:
+                    st.info("Available expiration dates:")
+                    # Convert string dates to date objects for better display
+                    try:
+                        available_dates = [pd.to_datetime(d).date() for d in error["available_dates"]]
+                        available_dates.sort()  # Sort dates chronologically
+                        
+                        # Display the next few available dates
+                        date_cols = st.columns(min(5, len(available_dates)))
+                        for i, col in enumerate(date_cols):
+                            if i < len(available_dates):
+                                col.metric("Expiration", available_dates[i].strftime('%Y-%m-%d'))
+                    except Exception as e:
+                        # Fallback if date conversion fails
+                        st.write(", ".join(error["available_dates"]))
+                        logging.error(f"Date conversion error: {str(e)}")
+                
+                # Clear any previous data
+                st.session_state['merged'] = None
+                
+                # Update last parameters to prevent auto-fetch loop
+                st.session_state['last_params'] = {
+                    'ticker': ticker,
+                    'expiration': expiration,
+                    'step': step,
+                    'range_above_below': range_above_below
+                }
+                return
+                
+            # Process the data
+            min_strike = max(0, spot - range_above_below)  # Ensure min_strike is not negative
+            max_strike = spot + range_above_below
+
+            # Check if we have valid data to process
+            if calls.empty or puts.empty:
+                st.error(f"No options data available for {ticker} on {expiration}")
+                st.session_state['merged'] = None
+                st.session_state['last_params'] = current_params
+                return
+
+            # Filter calls and puts based on the range
+            calls_filtered = calls[(calls['strike'] >= min_strike) & (calls['strike'] <= max_strike)]
+            puts_filtered = puts[(puts['strike'] >= min_strike) & (puts['strike'] <= max_strike)]
+
+            # Check if filtered data is empty
+            if calls_filtered.empty or puts_filtered.empty:
+                st.warning(f"No options data found within the selected price range. Try increasing the range.")
+                
+            calls_filtered = calls_filtered[calls_filtered['strike'] % step == 0]
+            puts_filtered = puts_filtered[puts_filtered['strike'] % step == 0]
+
+            # Create merged dataframe
+            try:
+                merged = pd.merge(
+                    calls_filtered[['strike', 'openInterest', 'lastPrice']].rename(
+                        columns={'openInterest':'call_oi', 'lastPrice':'call_price'}),
+                    puts_filtered[['strike', 'openInterest', 'lastPrice']].rename(
+                        columns={'openInterest':'put_oi', 'lastPrice':'put_price'}),
+                    on='strike',
+                    how='outer'
+                ).fillna(0)
+
+                merged['call_oi'] = merged['call_oi'].astype(int)
+                merged['put_oi'] = merged['put_oi'].astype(int)
+                merged['delta'] = merged['call_oi'] - merged['put_oi']
+
+                st.session_state['merged'] = merged
+                st.session_state['spot'] = spot
+                st.session_state['ticker'] = ticker
+                
+                # Update last parameters
+                st.session_state['last_params'] = {
+                    'ticker': ticker,
+                    'expiration': expiration,
+                    'step': step,
+                    'range_above_below': range_above_below
+                }
+            except Exception as e:
+                st.error(f"Error processing options data: {str(e)}")
+                logging.error(f"Data processing error: {str(e)}")
+                st.session_state['merged'] = None
+                st.session_state['last_params'] = current_params
+        except Exception as e:
+            st.error(f"An unexpected error occurred: {str(e)}")
+            logging.error(f"Unexpected error: {str(e)}")
             st.session_state['merged'] = None
-            
-            # Update last parameters to prevent auto-fetch loop
-            st.session_state['last_params'] = {
-                'ticker': ticker,
-                'expiration': expiration,
-                'step': step,
-                'range_above_below': range_above_below
-            }
-            return
-            
-        min_strike = max(0, spot - range_above_below)  # Ensure min_strike is not negative
-        max_strike = spot + range_above_below
-
-        # Filter calls and puts based on the range
-        calls_filtered = calls[(calls['strike'] >= min_strike) & (calls['strike'] <= max_strike)]
-        puts_filtered = puts[(puts['strike'] >= min_strike) & (puts['strike'] <= max_strike)]
-
-        calls_filtered = calls_filtered[calls_filtered['strike'] % step == 0]
-        puts_filtered = puts_filtered[puts_filtered['strike'] % step == 0]
-
-        merged = pd.merge(
-            calls_filtered[['strike', 'openInterest', 'lastPrice']].rename(
-                columns={'openInterest':'call_oi', 'lastPrice':'call_price'}),
-            puts_filtered[['strike', 'openInterest', 'lastPrice']].rename(
-                columns={'openInterest':'put_oi', 'lastPrice':'put_price'}),
-            on='strike',
-            how='outer'
-        ).fillna(0)
-
-        merged['call_oi'] = merged['call_oi'].astype(int)
-        merged['put_oi'] = merged['put_oi'].astype(int)
-        merged['delta'] = merged['call_oi'] - merged['put_oi']
-
-        st.session_state['merged'] = merged
-        st.session_state['spot'] = spot
-        st.session_state['ticker'] = ticker
-        
-        # Update last parameters
-        st.session_state['last_params'] = {
-            'ticker': ticker,
-            'expiration': expiration,
-            'step': step,
-            'range_above_below': range_above_below
-        }
 
 # Check if fetch button is clicked
 if fetch_button:
