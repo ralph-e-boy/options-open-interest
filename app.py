@@ -99,10 +99,9 @@ def make_refined_chart(merged_df, spot, ticker):
         hovertemplate="Strike: %{y}<br>Net Delta: %{x}<extra></extra>",
     ))
 
-    # Snap zoom range: around Spot ± 10 strikes
+    # Use the full range of strikes in the filtered data
     y_min = merged_df['strike'].min()
     y_max = merged_df['strike'].max()
-    zoom_margin = (y_max - y_min) * 0.15  # 15% margin
 
     fig.update_layout(
         title=f"{ticker} Options Open Interest Map",
@@ -114,7 +113,7 @@ def make_refined_chart(merged_df, spot, ticker):
             tickvals=merged_df['strike'],
             ticktext=[str(int(strike)) for strike in merged_df['strike']],
             tickfont=dict(size=10),
-            range=[spot - zoom_margin, spot + zoom_margin],  # 👈 SNAP ZOOM AROUND SPOT
+            range=[y_min, y_max],  # Show the full range of filtered strikes
         ),
         xaxis=dict(zeroline=True, zerolinewidth=2, zerolinecolor='black'),
         plot_bgcolor="#f9f9f9",
