@@ -112,14 +112,18 @@ def make_refined_chart(merged_df, spot, ticker):
             tickmode='array',
             tickvals=merged_df['strike'],
             ticktext=[str(int(strike)) for strike in merged_df['strike']],
-            tickfont=dict(size=10),
+            tickfont=dict(size=12),
             range=[y_min, y_max],  # Show the full range of filtered strikes
         ),
         xaxis=dict(zeroline=True, zerolinewidth=2, zerolinecolor='black'),
         plot_bgcolor="#f9f9f9",
         bargap=0.2,
-        height=1800,
-        legend=dict(orientation="h", y=1.05, x=0.5, xanchor="center"),
+        height=1600,
+		legend=dict(orientation="h", y=1.05, x=0.5, xanchor="center"),
+		font=dict(
+			size=18,
+			color="RebeccaPurple"
+			)
     )
     return fig
 
