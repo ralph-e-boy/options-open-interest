@@ -67,7 +67,7 @@ def make_refined_chart(merged_df, spot, ticker):
         x1=merged_df[['put_oi', 'call_oi']].max().max() * 1.1,
         y0=spot,
         y1=spot,
-        line=dict(color="blue", width=2, dash="dash"),
+        line=dict(color="blue", width=4, dash="dash"),
     )
 
     # Delta markers
@@ -75,7 +75,7 @@ def make_refined_chart(merged_df, spot, ticker):
         x=merged_df['delta'],
         y=merged_df['strike'],
         mode='markers',
-        marker=dict(color='black', size=6),
+        marker=dict(color='black', size=8),
         name='Net Call-Put Delta',
         hovertemplate="Strike: %{y}<br>Net Delta: %{x}<extra></extra>",
     ))
