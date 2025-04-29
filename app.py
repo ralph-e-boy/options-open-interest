@@ -140,7 +140,7 @@ with col1:
 with col2:
     expiration = st.date_input("Select Expiration Date", value=next_weekday(date.today()))
 with col3:
-    range_above_below = st.slider("Range Above and Below Spot ($)", min_value=0, max_value=200, value=100)
+    range_above_below = st.slider("Range Above and Below Spot ($)", min_value=0, max_value=200, value=25)
 
 # Always use step=1
 step = 1
